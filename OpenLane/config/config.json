@@ -1,0 +1,17 @@
+{
+    "DESIGN_NAME": "AES",
+    "VERILOG_FILES": [
+        "dir::src/AES.v",
+        "dir::src/AES_Encrypt.v",
+        "dir::src/keyExpansion.v",
+        "dir::src/mixColumns.v",
+        "dir::src/sbox.v",
+        "dir::src/shiftRows.v",
+        "dir::src/subBytes.v"
+    ],
+    "CLOCK_PORT": "clk",
+    "CLOCK_PERIOD": 10.0,
+    "FP_SIZING": "absolute",
+    "FP_CORE_UTIL": 40,
+    "DIE_AREA": "0 0 500 500"
+}

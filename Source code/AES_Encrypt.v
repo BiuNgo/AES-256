@@ -71,10 +71,12 @@ module AES_Encrypt(
             round_counter_reg   <= next_round_counter;
             state_data_reg      <= next_state_data;
             
-            if (next_state == S_DONE) begin
-                out  <= next_state_data;
+            if (reset) begin
+                done <= 1'b0;
+            end else if (state_reg == S_DONE) begin
+                out <= next_state_data;
                 done <= 1'b1;
-            end else begin
+            end else if (start) begin
                 done <= 1'b0;
             end
         end

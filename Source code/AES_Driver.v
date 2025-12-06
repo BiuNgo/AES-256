@@ -1,23 +1,20 @@
-module AES_AXI_Wrapper(
+module AES_Driver(
     input wire clk,
     input wire reset,
-    // Interface to Processor (via AXI GPIO)
-    input wire [31:0] data_in,      // 32-bit chunks of data from CPU
-    input wire [3:0]  write_addr,   // Address to select which chunk to write
-    input wire        write_en,     // Write enable signal
-    input wire        start_cmd,    // Start signal from CPU
-    output wire       done_flag,    // Done signal to CPU
-    output reg [31:0] data_out,     // 32-bit chunks of result to CPU
-    input wire [1:0]  read_addr     // Address to select which result chunk to read
+    input wire [31:0] data_in,
+    input wire [3:0]  write_addr,
+    input wire        write_en,
+    input wire        start_cmd,
+    output wire       done_flag,
+    output reg [31:0] data_out,
+    input wire [1:0]  read_addr
     );
 
-    // Internal Registers
     reg [255:0] key_reg;
     reg [127:0] plain_reg;
     wire [127:0] cipher_wire;
     wire aes_done;
 
-    // Instantiate your original AES module
     AES aes_inst (
         .clk(clk),
         .reset(reset),
@@ -30,16 +27,12 @@ module AES_AXI_Wrapper(
 
     assign done_flag = aes_done;
 
-    // Write Logic (CPU -> FPGA)
-    // We split 256-bit Key into 8x 32-bit chunks
-    // We split 128-bit Plaintext into 4x 32-bit chunks
     always @(posedge clk) begin
         if (reset) begin
             key_reg <= 0;
             plain_reg <= 0;
         end else if (write_en) begin
             case (write_addr)
-                // Writing Key (0-7)
                 4'd0: key_reg[255:224] <= data_in;
                 4'd1: key_reg[223:192] <= data_in;
                 4'd2: key_reg[191:160] <= data_in;
@@ -48,7 +41,7 @@ module AES_AXI_Wrapper(
                 4'd5: key_reg[95:64]   <= data_in;
                 4'd6: key_reg[63:32]   <= data_in;
                 4'd7: key_reg[31:0]    <= data_in;
-                // Writing Plaintext (8-11)
+                
                 4'd8: plain_reg[127:96] <= data_in;
                 4'd9: plain_reg[95:64]  <= data_in;
                 4'd10: plain_reg[63:32] <= data_in;
@@ -57,8 +50,6 @@ module AES_AXI_Wrapper(
         end
     end
 
-    // Read Logic (FPGA -> CPU)
-    // Read Ciphertext in 4 chunks
     always @(*) begin
         case (read_addr)
             2'd0: data_out = cipher_wire[127:96];

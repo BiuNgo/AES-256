@@ -8,7 +8,7 @@ module subBytes(
     genvar i;
     generate
         for (i = 0; i < 128; i = i + 8) begin : sbox_loop
-            sbox s_inst (
+            sbox sbox_inst (
                 .a(in[i+: 8]), 
                 .c(out[i+: 8])
             );

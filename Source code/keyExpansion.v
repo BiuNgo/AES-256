@@ -28,8 +28,8 @@ module keyExpansion (
     wire [31:0] sbox_out;
     genvar i;
     generate
-        for (i = 0; i < 4; i = i + 1) begin : sbox_instances
-            sbox sb (
+        for (i = 0; i < 4; i = i + 1) begin : sbox_loop
+            sbox sbox_inst (
                 .a(sbox_in[8*i +: 8]), 
                 .c(sbox_out[8*i +: 8])
             );

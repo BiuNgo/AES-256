@@ -4,89 +4,118 @@ module AES_tb();
 
     reg clk;
     reg reset;
-    reg start;
-    reg [127:0] plaintext;
-    reg [255:0] key;
-    wire [127:0] ciphertext;
-    wire done;
+    reg [31:0] data_in;
+    reg [3:0]  write_addr;
+    reg        write_en;
+    reg        start_cmd;
+    reg [1:0]  read_addr;
+
+    wire        done_flag;
+    wire [31:0] data_out;
 
     integer file_handle;
     integer scan_result;
     integer count_val;
+    
     reg [255:0] file_key;
     reg [127:0] file_plaintext;
     reg [127:0] file_expected_ciphertext;
     
+    reg [127:0] reconstructed_ciphertext; 
+
     reg [8*20:1] label_dummy; 
     reg [8*1:1]  equal_dummy;
 
     integer tests_passed;
     integer tests_failed;
+    integer i;
 
-    AES dut (
+    AES_Driver dut (
         .clk(clk),
         .reset(reset),
-        .start(start),
-        .plaintext(plaintext),
-        .key(key),
-        .ciphertext(ciphertext),
-        .done(done)
+        .data_in(data_in),
+        .write_addr(write_addr),
+        .write_en(write_en),
+        .start_cmd(start_cmd),
+        .done_flag(done_flag),
+        .data_out(data_out),
+        .read_addr(read_addr)
     );
 
     initial begin
         clk = 0;
-        forever #4 clk = ~clk;
+        forever #5 clk = ~clk;
     end
 
     initial begin
         reset = 1;
-        start = 0;
-        plaintext = 0;
-        key = 0;
+        start_cmd = 0;
+        data_in = 0;
+        write_addr = 0;
+        write_en = 0;
+        read_addr = 0;
         tests_passed = 0;
         tests_failed = 0;
 
         file_handle = $fopen("input.txt", "r");
+        if (file_handle == 0) begin
+            $display("Error: Could not open input.txt");
+            $finish;
+        end
 
-        #1;
+        #10;
         reset = 0;
-        #1;
+        #10;
 
         while (!$feof(file_handle)) begin
             scan_result = $fscanf(file_handle, "%s %s %d", label_dummy, equal_dummy, count_val);
-            
-            if (scan_result == 3) begin
                 
-                scan_result = $fscanf(file_handle, "%s %s %h", label_dummy, equal_dummy, file_key);
-                
-                scan_result = $fscanf(file_handle, "%s %s %h", label_dummy, equal_dummy, file_plaintext);
-                
-                scan_result = $fscanf(file_handle, "%s %s %h", label_dummy, equal_dummy, file_expected_ciphertext);
+            scan_result = $fscanf(file_handle, "%s %s %h", label_dummy, equal_dummy, file_key);
+            scan_result = $fscanf(file_handle, "%s %s %h", label_dummy, equal_dummy, file_plaintext);
+            scan_result = $fscanf(file_handle, "%s %s %h", label_dummy, equal_dummy, file_expected_ciphertext);
 
-                key = file_key;
-                plaintext = file_plaintext;
-
+            @(posedge clk);
+            write_en = 1;
+            for (i = 0; i < 8; i = i + 1) begin
+                write_addr = i;
+                data_in = file_key[255 - (i*32) -: 32]; 
                 @(posedge clk);
-                start = 1;
-                @(posedge clk);
-                start = 0;
-
-                wait(done == 1);
-                
-                if (ciphertext === file_expected_ciphertext) begin
-                    $display("Test %0d: PASSED", count_val);
-                    tests_passed = tests_passed + 1;
-                end else begin
-                    $display("Test %0d: FAILED", count_val);
-                    $display("   Key:      %h", key);
-                    $display("   PT:       %h", plaintext);
-                    $display("   Exp CT:   %h", file_expected_ciphertext);
-                    $display("   Got CT:   %h", ciphertext);
-                    tests_failed = tests_failed + 1;
-                end
-
-                #1;
             end
+
+            for (i = 0; i < 4; i = i + 1) begin
+                write_addr = 8 + i;
+                data_in = file_plaintext[127 - (i*32) -: 32];
+                @(posedge clk);
+            end
+                
+            write_en = 0;
+
+            start_cmd = 1;
+            @(posedge clk);
+            start_cmd = 0;
+
+            wait(done_flag == 1);
+                
+            @(posedge clk);
+            for (i = 0; i < 4; i = i + 1) begin
+                read_addr = i;
+                #1;
+                reconstructed_ciphertext[127 - (i*32) -: 32] = data_out;
+            end
+
+            if (reconstructed_ciphertext === file_expected_ciphertext) begin
+                $display("Test %0d: PASSED", count_val);
+                tests_passed = tests_passed + 1;
+            end else begin
+                $display("Test %0d: FAILED", count_val);
+                $display("   Key:      %h", file_key);
+                $display("   PT:       %h", file_plaintext);
+                $display("   Exp CT:   %h", file_expected_ciphertext);
+                $display("   Got CT:   %h", reconstructed_ciphertext);
+                tests_failed = tests_failed + 1;
+            end
+
+            #10;
         end
 
         $fclose(file_handle);
